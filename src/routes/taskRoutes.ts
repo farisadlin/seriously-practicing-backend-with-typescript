@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { validateData } from "../middleware/validationMiddleware";
 import { createTask, deleteTask, getTask, updateTask } from "./taskController";
-import { taskSchemas } from "../schemas/taskschemas";
+import { taskSchemas } from "../schemas/taskSchemas";
 
 const taskRouter = Router();
 
