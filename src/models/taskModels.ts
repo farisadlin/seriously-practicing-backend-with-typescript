@@ -3,5 +3,5 @@ export interface Task {
   userId: string | number;
   title: string;
   description: string;
-  completed?: boolean;
+  completed?: number | boolean;
 }

@@ -10,6 +10,10 @@ export const updateTaskSchemas = z.object({
   description: z.string(),
 });
 
+export const updateTaskStatusSchemas = z.object({
+  completed: z.boolean(),
+});
+
 export const deleteTaskSchemas = z.object({
   id: z.number(),
 });
