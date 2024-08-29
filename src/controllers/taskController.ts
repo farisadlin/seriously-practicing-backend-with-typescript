@@ -35,15 +35,75 @@ export const createTask = async (req: Request, res: Response) => {
         description,
         completed: false,
       };
-      res
-        .status(201)
-        .json({ message: "Task created successfully", data: newTask });
+      res.status(201).json({
+        message: "Task created successfully",
+        data: {
+          id: newTask.id,
+          user_id: newTask.userId,
+          title: newTask.title,
+          description: newTask.description,
+          completed: newTask.completed,
+        },
+      });
     } catch (jwtError) {
       console.error("Error decoding JWT:", jwtError);
       return res.status(401).json({ message: "Invalid token" });
     }
   } catch (error) {
     handleError(res, error, "creating task");
+  }
+};
+
+export const getAllTasks = async (req: Request, res: Response) => {
+  try {
+    const connection = await getConnection();
+    const token = req.headers.authorization?.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({ message: "No token provided" });
+    }
+
+    try {
+      const { userId } = verifyToken(token);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+      const offset = (page - 1) * limit;
+
+      const [tasks] = (await executeQuery(
+        connection,
+        "SELECT * FROM tasks WHERE user_id = ? LIMIT ? OFFSET ?",
+        [userId, limit, offset]
+      )) as RowDataPacket[];
+
+      const [totalCount] = (await executeQuery(
+        connection,
+        "SELECT COUNT(*) as count FROM tasks WHERE user_id = ?",
+        [userId]
+      )) as RowDataPacket[];
+
+      const totalPages = Math.ceil(totalCount[0].count / limit);
+
+      res.json({
+        tasks: tasks.map((task: Task) => ({
+          id: task.id,
+          user_id: task.userId,
+          title: task.title,
+          description: task.description,
+          completed: task.completed === 1,
+        })),
+        pagination: {
+          current_page: page,
+          total_pages: totalPages,
+          total_items: totalCount[0].count,
+          items_per_page: limit,
+        },
+      });
+    } catch (jwtError) {
+      console.error("Error decoding JWT:", jwtError);
+      return res.status(401).json({ message: "Invalid token" });
+    }
+  } catch (error) {
+    handleError(res, error, "getting all tasks");
   }
 };
 
@@ -67,7 +127,13 @@ export const getTask = async (req: Request, res: Response) => {
       if (rows.length === 0) {
         res.status(404).send("Task not found");
       } else {
-        res.json({ ...rows[0], completed: rows[0].completed === 1 });
+        res.json({
+          id: rows[0].id,
+          user_id: rows[0].user_id,
+          title: rows[0].title,
+          description: rows[0].description,
+          completed: rows[0].completed === 1,
+        });
       }
     } catch (jwtError) {
       console.error("Error decoding JWT:", jwtError);
@@ -105,7 +171,10 @@ export const updateTask = async (req: Request, res: Response) => {
           [parseInt(req.params.id), userId]
         )) as RowDataPacket[];
         res.json({
-          ...updatedTask[0],
+          id: updatedTask[0].id,
+          user_id: updatedTask[0].user_id,
+          title: updatedTask[0].title,
+          description: updatedTask[0].description,
           completed: updatedTask[0].completed === 1,
         });
       }
@@ -149,56 +218,6 @@ export const deleteTask = async (req: Request, res: Response) => {
   }
 };
 
-export const getAllTasks = async (req: Request, res: Response) => {
-  try {
-    const connection = await getConnection();
-    const token = req.headers.authorization?.split(" ")[1];
-
-    if (!token) {
-      return res.status(401).json({ message: "No token provided" });
-    }
-
-    try {
-      const { userId } = verifyToken(token);
-      const page = parseInt(req.query.page as string) || 1;
-      const limit = parseInt(req.query.limit as string) || 10;
-      const offset = (page - 1) * limit;
-
-      const [tasks] = (await executeQuery(
-        connection,
-        "SELECT * FROM tasks WHERE user_id = ? LIMIT ? OFFSET ?",
-        [userId, limit, offset]
-      )) as RowDataPacket[];
-
-      const [totalCount] = (await executeQuery(
-        connection,
-        "SELECT COUNT(*) as count FROM tasks WHERE user_id = ?",
-        [userId]
-      )) as RowDataPacket[];
-
-      const totalPages = Math.ceil(totalCount[0].count / limit);
-
-      res.json({
-        tasks: tasks.map((task: Task) => ({
-          ...task,
-          completed: task.completed === 1,
-        })),
-        pagination: {
-          currentPage: page,
-          totalPages,
-          totalItems: totalCount[0].count,
-          itemsPerPage: limit,
-        },
-      });
-    } catch (jwtError) {
-      console.error("Error decoding JWT:", jwtError);
-      return res.status(401).json({ message: "Invalid token" });
-    }
-  } catch (error) {
-    handleError(res, error, "getting all tasks");
-  }
-};
-
 export const updateTaskStatus = async (req: Request, res: Response) => {
   try {
     const connection = await getConnection();
@@ -228,7 +247,10 @@ export const updateTaskStatus = async (req: Request, res: Response) => {
         res.json({
           message: "Task status updated successfully",
           task: {
-            ...updatedTask[0],
+            id: updatedTask[0].id,
+            user_id: updatedTask[0].user_id,
+            title: updatedTask[0].title,
+            description: updatedTask[0].description,
             completed: updatedTask[0].completed === 1,
           },
         });

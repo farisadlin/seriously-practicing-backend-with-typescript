@@ -10,7 +10,6 @@ import {
 } from "../controllers/taskController";
 import {
   createTaskSchemas,
-  deleteTaskSchemas,
   updateTaskSchemas,
   updateTaskStatusSchemas,
 } from "../schemas/taskSchemas";
@@ -38,11 +37,6 @@ taskRouter.put(
   validateData(updateTaskStatusSchemas),
   updateTaskStatus
 );
-taskRouter.delete(
-  "/delete/:id",
-  authenticateToken,
-  validateData(deleteTaskSchemas),
-  deleteTask
-);
+taskRouter.delete("/delete/:id", authenticateToken, deleteTask);
 
 export default taskRouter;
