@@ -30,7 +30,7 @@ export const createTask = async (req: Request, res: Response) => {
 
       const newTask: Task = {
         id: result.insertId,
-        userId,
+        user_id: userId,
         title,
         description,
         completed: false,
@@ -39,7 +39,7 @@ export const createTask = async (req: Request, res: Response) => {
         message: "Task created successfully",
         data: {
           id: newTask.id,
-          user_id: newTask.userId,
+          user_id: newTask.user_id,
           title: newTask.title,
           description: newTask.description,
           completed: newTask.completed,
@@ -86,10 +86,11 @@ export const getAllTasks = async (req: Request, res: Response) => {
       res.json({
         tasks: tasks.map((task: Task) => ({
           id: task.id,
-          user_id: task.userId,
           title: task.title,
           description: task.description,
           completed: task.completed === 1,
+          created_at: task.created_at,
+          updated_at: task.updated_at,
         })),
         pagination: {
           current_page: page,
