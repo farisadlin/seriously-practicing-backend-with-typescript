@@ -71,7 +71,7 @@ export const getAllTasks = async (req: Request, res: Response) => {
 
       const [tasks] = (await executeQuery(
         connection,
-        "SELECT * FROM tasks WHERE user_id = ? LIMIT ? OFFSET ?",
+        "SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
         [userId, limit, offset]
       )) as RowDataPacket[];
 
