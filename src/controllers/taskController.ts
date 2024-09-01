@@ -65,23 +65,76 @@ export const getAllTasks = async (req: Request, res: Response) => {
 
     try {
       const { userId } = verifyToken(token);
+      const search = req.query.search as string;
+
+      // Don't reset page to 1 if search query is present
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const offset = (page - 1) * limit;
 
-      const [tasks] = (await executeQuery(
-        connection,
-        "SELECT * FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
-        [userId, limit, offset]
-      )) as RowDataPacket[];
+      // New query parameters
+      const completed = req.query.completed;
+      const createdAt = req.query.created_at;
+      const orderBy = (req.query.order_by as string) || "created_at";
+      const orderDirection = (req.query.order_direction as string) || "DESC";
+
+      let query = "SELECT * FROM tasks WHERE user_id = ?";
+      let countQuery = "SELECT COUNT(*) as count FROM tasks WHERE user_id = ?";
+      const queryParams: (number | string)[] = [userId];
+      const countParams: (number | string)[] = [userId];
+
+      if (completed !== undefined) {
+        query += " AND completed = ?";
+        countQuery += " AND completed = ?";
+        queryParams.push(completed === "true" ? 1 : 0);
+        countParams.push(completed === "true" ? 1 : 0);
+      }
+
+      if (createdAt) {
+        query += " AND DATE(created_at) = ?";
+        countQuery += " AND DATE(created_at) = ?";
+        queryParams.push(createdAt as string);
+        countParams.push(createdAt as string);
+      }
+
+      if (search) {
+        query += " AND title LIKE ?";
+        countQuery += " AND title LIKE ?";
+        queryParams.push(`%${search}%`);
+        countParams.push(`%${search}%`);
+      }
+
+      // Modify the ORDER BY clause to put completed tasks last
+      query += ` ORDER BY completed ASC, ${orderBy} ${orderDirection} LIMIT ? OFFSET ?`;
+      queryParams.push(limit, offset);
+
+      const [tasks] = (await executeQuery(connection, query, queryParams)) as [
+        Task[]
+      ];
 
       const [totalCount] = (await executeQuery(
         connection,
-        "SELECT COUNT(*) as count FROM tasks WHERE user_id = ?",
-        [userId]
+        countQuery,
+        countParams
       )) as RowDataPacket[];
 
-      const totalPages = Math.ceil(totalCount[0].count / limit);
+      const totalItems = totalCount[0].count;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      // Check if the current page is valid
+      const validPage = Math.min(Math.max(1, page), Math.max(1, totalPages));
+
+      // If the page has changed and there are items, recalculate offset and fetch tasks again
+      if (validPage !== page && totalItems > 0) {
+        const newOffset = (validPage - 1) * limit;
+        queryParams[queryParams.length - 1] = newOffset;
+        const [newTasks] = (await executeQuery(
+          connection,
+          query,
+          queryParams
+        )) as [Task[]];
+        tasks.splice(0, tasks.length, ...newTasks);
+      }
 
       res.json({
         tasks: tasks.map((task: Task) => ({
@@ -93,9 +146,9 @@ export const getAllTasks = async (req: Request, res: Response) => {
           updated_at: task.updated_at,
         })),
         pagination: {
-          current_page: page,
+          current_page: validPage,
           total_pages: totalPages,
-          total_items: totalCount[0].count,
+          total_items: totalItems,
           items_per_page: limit,
         },
       });
