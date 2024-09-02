@@ -76,7 +76,8 @@ export const getAllTasks = async (req: Request, res: Response) => {
       const completed = req.query.completed;
       const createdAt = req.query.created_at;
       const orderBy = (req.query.order_by as string) || "created_at";
-      const orderDirection = (req.query.order_direction as string) || "DESC";
+      const sortDirection = (req.query.sort_by as string) || "DESC";
+      const taskName = req.query.title as string;
 
       let query = "SELECT * FROM tasks WHERE user_id = ?";
       let countQuery = "SELECT COUNT(*) as count FROM tasks WHERE user_id = ?";
@@ -98,14 +99,26 @@ export const getAllTasks = async (req: Request, res: Response) => {
       }
 
       if (search) {
-        query += " AND title LIKE ?";
-        countQuery += " AND title LIKE ?";
-        queryParams.push(`%${search}%`);
-        countParams.push(`%${search}%`);
+        query += " AND (title LIKE ? OR description LIKE ?)";
+        countQuery += " AND (title LIKE ? OR description LIKE ?)";
+        queryParams.push(`%${search}%`, `%${search}%`);
+        countParams.push(`%${search}%`, `%${search}%`);
       }
 
-      // Modify the ORDER BY clause to put completed tasks last
-      query += ` ORDER BY completed ASC, ${orderBy} ${orderDirection} LIMIT ? OFFSET ?`;
+      if (taskName) {
+        query += " AND title LIKE ?";
+        countQuery += " AND title LIKE ?";
+        queryParams.push(`%${taskName}%`);
+        countParams.push(`%${taskName}%`);
+      }
+
+      // Modify the ORDER BY clause
+      if (completed !== undefined) {
+        query += ` ORDER BY completed ASC, ${orderBy} ${sortDirection}`;
+      } else {
+        query += ` ORDER BY ${orderBy} ${sortDirection}`;
+      }
+      query += " LIMIT ? OFFSET ?";
       queryParams.push(limit, offset);
 
       const [tasks] = (await executeQuery(connection, query, queryParams)) as [

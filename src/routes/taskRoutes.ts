@@ -17,26 +17,18 @@ import authenticateToken from "../middleware/authenticateToken";
 
 const taskRouter = Router();
 
-taskRouter.post(
-  "/create",
-  authenticateToken,
-  validateData(createTaskSchemas),
-  createTask
-);
-taskRouter.get("/get/all", authenticateToken, getAllTasks);
-taskRouter.get("/get/:id", authenticateToken, getTask);
-taskRouter.put(
-  "/update/:id",
-  authenticateToken,
-  validateData(updateTaskSchemas),
-  updateTask
-);
+// Apply authenticateToken middleware to all routes
+taskRouter.use(authenticateToken);
+
+taskRouter.post("/create", validateData(createTaskSchemas), createTask);
+taskRouter.get("/get/all", getAllTasks);
+taskRouter.get("/get/:id", getTask);
+taskRouter.put("/update/:id", validateData(updateTaskSchemas), updateTask);
 taskRouter.put(
   "/update/status/:id",
-  authenticateToken,
   validateData(updateTaskStatusSchemas),
   updateTaskStatus
 );
-taskRouter.delete("/delete/:id", authenticateToken, deleteTask);
+taskRouter.delete("/delete/:id", deleteTask);
 
 export default taskRouter;
