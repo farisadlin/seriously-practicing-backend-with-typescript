@@ -6,6 +6,7 @@ dotenv.config();
 
 interface AuthRequest extends Request {
   user?: string | JwtPayload | undefined;
+  tokenExpired?: boolean;
 }
 
 const authenticateToken = (
@@ -16,8 +17,17 @@ const authenticateToken = (
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
   if (token == null) return res.sendStatus(401);
+
   jwt.verify(token, process.env.JWT_SECRET as string, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err) {
+      if (err.name === "TokenExpiredError") {
+        // Token is expired, but don't send an error message
+        // Instead, set a flag to indicate token expiration
+        req.tokenExpired = true;
+        return next();
+      }
+      return res.sendStatus(403);
+    }
     req.user = user;
     next();
   });
